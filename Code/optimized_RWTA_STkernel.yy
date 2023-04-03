@@ -25,10 +25,10 @@
 #include <set>
 #include <algorithm>
 #include <string.h>
-  #include <chrono>
+#include <chrono>
 
-  using namespace std;
-
+using namespace std;
+using namespace std::chrono;
 
 
 typedef std::list<std::string> strings_type;
@@ -78,8 +78,8 @@ Automaton* clone() const { return new Automaton(*this); }
 %code // *.cc
 {
 
-int STkernel_recursive(Automaton*, Automaton*,int,list<char>,map<pair<State*,State*>,int>);
-int STkernel_sequential(Automaton*, Automaton*,map<int,set<pair<string,int>>>&);
+
+int STkernel_Hadamard_Product(Automaton*, Automaton*,map<int,set<pair<string,int>>>&);
 long long compute_hash(std::string const&);
 hash<string> str_hash;
 
@@ -162,8 +162,8 @@ line : RTL      {
 
 
 Tx : SYMBOL PO  Te  PF  {     
-                                    symbol = make_pair($1,$3.size()); 
-                                   l =0;
+                                  symbol = make_pair($1,$3.size()); 
+                                  l =0;
                                     hash_w = "0";
                                     for(auto s : $3){
                                         hash_w += to_string(s->hash_state);
@@ -179,9 +179,9 @@ Tx : SYMBOL PO  Te  PF  {
                                         SYM[l+1].insert(symbol); 
                                         
                                          
-                                         $$ = new State(i,1,l+1); 
-                                            $$->arity = $3.size(); 
-                                           $$->hash_state = str_hash($1+hash_w);
+                                          $$ = new State(i,1,l+1); 
+                                          $$->arity = $3.size(); 
+                                          $$->hash_state = str_hash($1+hash_w);
                                          //  cout << " state " << i << " symbol " << symbol.first << "," << symbol.second << ",    "<<l+1 << " : "<<$3.size() << " : " <<hash_v << endl;
                                 
                                          i++;
@@ -273,7 +273,7 @@ yy::parser::error(const yy::parser::location_type& loc, const std::string& msg)
 }
 
 /********************************************************************************************/
-int STkernel_sequential(Automaton* A1, Automaton* A2,map<int ,set<pair<string,int>>> &sym){
+int STkernel_Hadamard_Product(Automaton* A1, Automaton* A2,map<int ,set<pair<string,int>>> &sym){
 
 int kernel = 0,  alphabet_size = 0;
 
@@ -307,89 +307,51 @@ return kernel;
 int main(int argc, char* argv[])
 {  
  
-/*list<Label*> sym;*/
 
-
-  
   map<pair<State*,State*>,int> Cartesian_product;
 
    int nbStates = 0, treelevel=0;
-   int k=1, l=1,KER;
-   int kernel= 0,D=0, alpha_size = 0;
-
+   long k=1, l=1,KER;
+   long kernel= 0,D=0, alpha_size = 0;
+    int data_set_size = atoi(argv[3]);
 
         yy::parser p;
         yyin = fopen(argv[1],"r");
-       auto start = std::chrono::high_resolution_clock::now();  
+    auto start = chrono::high_resolution_clock::now();  
+
         p.parse();
-         auto stop = std::chrono::high_resolution_clock::now(); 
-         auto structure_construction = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
+
+    auto stop = chrono::high_resolution_clock::now(); 
+    auto structure_construction = chrono::duration_cast<std::chrono::microseconds>(stop - start); 
 
 
+     for(k=0;k<data_set_size-1;k++){
+             for(l=k+1;l<data_set_size;l++){ 
 
+    auto start1 = chrono::high_resolution_clock::now();  
+                   
+          KER = STkernel_Hadamard_Product(ST[k],ST[l],SYM);
+          kernel += KER;
+          
+    auto stop1 = chrono::high_resolution_clock::now(); 
+    auto duration = chrono::duration_cast<std::chrono::microseconds>(stop1 - start1); 
 
-
-      
-/************************************************************************************
-//KER = STkernel_recusive(ST[0],ST[1],3,sym,Cartesian_product);
-      for(int i=0; i<ST[0]->level; i++){
-          for(auto symbol : SYM[i]){
-            if(!ST[0]->Q_level[i][symbol].empty()){
-               cout << "level " << i << "--> ("<< symbol.first << ","<< symbol.second << ")" << endl;
-            for(auto s1 : ST[0]->Q_level[i][symbol])      
-              cout << s1->index << " : " << s1->hash_state << "    " << endl;
-            }
-          }
-      }
-      for(int i=0; i<ST[1]->level; i++){
-          for(auto symbol : SYM[i]){
-            if(!ST[1]->Q_level[i][symbol].empty()){
-               cout << "level " << i << "--> ("<< symbol.first << ","<< symbol.second << ")" << endl;
-            if(!ST[1]->Q_level[i][symbol].empty())
-            for(auto s1 : ST[1]->Q_level[i][symbol])      
-              cout << s1->index << " : " << s1->hash_state << "    " << endl;
-            }
-          }
-      }
-
-
-/************************************************************************************/
-
-     for(k=0;k<99;k++){
-   //   cout << k << endl;
-             for(l=k+1;l<100;l++){    
-                      auto start = std::chrono::high_resolution_clock::now();  
-                  //   cout << l << endl;
-                        KER = STkernel_sequential(ST[k],ST[l],SYM);
-                       // cout << KER << endl;
-                        kernel += KER;
-
-
-                      auto stop = std::chrono::high_resolution_clock::now(); 
-                      auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start); 
-                     //  cout <<endl<<  "(A"<< k+1 <<",A"<< l+1 <<") duration : " << duration.count() << " μs" <<  " kernel = "
-                   //  cout  << KER << endl;
                       D += duration.count();  
-
-                    //  cout << " States : " <<  ST[l]->states ; 
-                     // cout << " Level : " <<   ST[l]->level <<endl;   
-              } 
-             // cout << " States : " <<  ST[k]->states ; 
-             // cout << " Level : " <<   ST[k]->level <<endl; 
-           nbStates += ST[k]->states;
-           treelevel += ST[k]->level;
-           alpha_size += SYM.size();  
-       }    
+    }
+  nbStates  += ST[k]->states;
+          treelevel += ST[k]->level;
+          alpha_size += SYM.size();  
+          
+           
+   }  
 
 
     ofstream results;
-    results.open ("./Dataset/Results/RWTA_vs_aioli",ios_base::app);
-    // cout << "kernel : " <<KER <<  "  construction : " << structure_construction.count() << " : evaluation "<< D << endl;
-
-    // cout  << "computation : " << D<< endl;
+    results.open (argv[2],ios_base::app);
+ 
    
-   results <<alpha_size/100 << ":" << nbStates/100 << ":" << treelevel/100 << ":" << kernel/4950 << ":" << structure_construction.count()/100 <<":" <<D/4950<< endl;
-   // results << nbStates/100 << ":" << treelevel/100 << ":" << kernel/4950 <<":" << structure_construction.count()/100<< ":" << D/4950 << endl;
+   results <<alpha_size/data_set_size << ":" << nbStates/data_set_size << ":" << treelevel/data_set_size << ": kernel : " << kernel/(data_set_size*(data_set_size-1)/2) << " : " << structure_construction.count()/data_set_size <<": temps : " <<D/(data_set_size*(data_set_size-1)/2)<< endl;
+   
    results.close();
 
     

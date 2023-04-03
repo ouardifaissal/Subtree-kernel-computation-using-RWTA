@@ -1,0 +1,7 @@
+$bison -d optimized_RWTA_STkernel.yy
+$g++  optimized_RWTA_STkernel.tab.cc -o RWTA
+
+$./RWTA wa_filename wa_output_file Data_set_size
+
+Example:
+$./RWTA wa_trees_5_5_2 wa_output 10
